@@ -26,6 +26,7 @@ This repository contains:
   - Validation modules:
     - [SingleSignerValidationModule](src/modules/validation/SingleSignerValidationModule.sol): Enables validation for a single signer (EOA or contract).
     - [WebAuthnValidationModule](src/modules/validation/WebAuthnValidationModule.sol): Enables validation for passkey signers.
+    - [GPGValidationModule](src/modules/validation/GPGValidationModule.sol): Enables validation for GPG signatures using the `0x696` precompile.
   - Permission-enforcing hook modules:
     - [AllowlistModule](src/modules/permissions/AllowlistModule.sol): Enforces ERC-20 spend limits and address/selector allowlists.
     - [NativeTokenLimitModule](src/modules/permissions/NativeTokenLimitModule.sol): Enforces native token spend limits.
@@ -122,7 +123,7 @@ Pre validation hooks are run before validations. Pre-validation hooks are necess
 
 #### Validations
 
-Validations are usually signature validation functions (secp256k1, BLS, WebAuthn, etc). While it’s feasible to implement signature validation as a pre-validation hook, it’s more efficient and ergonomic to do these in validations since it allows us to apply permissions per module entity using execution hooks. In ERC-4337, accounts can return validation data that’s not 0 or 1 to signal the usage of a signature aggregator.
+Validations are usually signature validation functions (secp256k1, BLS, WebAuthn, etc). While it's feasible to implement signature validation as a pre-validation hook, it's more efficient and ergonomic to do these in validations since it allows us to apply permissions per module entity using execution hooks. In ERC-4337, accounts can return validation data that's not 0 or 1 to signal the usage of a signature aggregator.
 
 #### Execution hooks
 
@@ -133,6 +134,49 @@ Execution hooks can be associated either with a module entity to apply permissio
 #### Execution functions
 
 Execution hooks are applied across execution functions. Modular account comes with native execution functions such as `installValidation`, `installExecution`, or `upgradeToAndCall`. However, you could customize the account by installing additional execution functions. After a new execution is installed, when the account is called with that function selector, the account would forward the call to the module associated with that installed execution. An example of a useful execution functions would be to implement callbacks for the account to be able to take flash loans.
+
+### GPG Validation Module Usage
+
+The `GPGValidationModule` allows accounts to be controlled by GPG keys, leveraging the `0x696` precompile for efficient signature verification on-chain.
+
+**Requirements:**
+
+- The chain where the account is deployed **must** support the GPG precompile at address `0x696`.
+
+**Installation:**
+
+Install the module by calling `installValidation` on the account:
+
+```solidity
+// Example data encoding for installation
+bytes memory installData = abi.encode(
+    uint32 entityId, // Choose an entityId for this key
+    bytes8 keyId,    // The specific GPG key ID
+    bytes memory pubKey // The full GPG public key bytes
+);
+account.installValidation(GPG_VALIDATION_MODULE_ADDRESS, installData);
+```
+
+**Signature Format:**
+
+When submitting a `UserOperation` or calling functions requiring validation (`validateRuntime`, `validateSignature`), the signature `bytes` must be formatted as follows:
+
+1.  **Signature Type Byte:** `0x02` (representing `SignatureType.GPG`).
+2.  **ABI Encoded Public Key:** The full GPG public key, ABI-encoded as `bytes`.
+3.  **ABI Encoded Signature:** The actual GPG signature, ABI-encoded as `bytes`.
+
+**Example Signature Construction (Conceptual):**
+
+```solidity
+// Off-chain or in tests
+bytes memory signatureData = abi.encodePacked(
+    bytes1(uint8(SignatureType.GPG)), // 0x02
+    abi.encode(fullPubKeyBytes),      // Encoded pubKey
+    abi.encode(gpgSignatureBytes)     // Encoded signature
+);
+```
+
+The module verifies that the hash of the provided `fullPubKeyBytes` matches the hash stored during installation before calling the precompile with the `digest`, `keyId`, `fullPubKeyBytes`, and `gpgSignatureBytes`.
 
 ## Security
 
@@ -160,7 +204,7 @@ A client should perform the following off-chain checks when interacting with a m
 
 #### Proxy pattern and initializer functions
 
-Initializer functions are not guarded by any access control modifier. If accounts are not used in a proxy pattern, during the account’s constructor, as per Openzeppelin’s implementation of `Initializable`, initializer functions are able to be reentered. This design choice can be used by an attacker to install additional validations to take over a user’s account.
+Initializer functions are not guarded by any access control modifier. If accounts are not used in a proxy pattern, during the account's constructor, as per Openzeppelin's implementation of `Initializable`, initializer functions are able to be reentered. This design choice can be used by an attacker to install additional validations to take over a user's account.
 
 #### Initializer functions with EIP-7702
 
