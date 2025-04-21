@@ -126,6 +126,7 @@ contract GetInitcodeHashScript is ScriptBase, Artifacts {
             SemiModularAccountBytecode(payable(_getSemiModularAccountBytecodeImpl()));
         address singleSignerValidationModule = _getSingleSignerValidationModule();
         address webAuthnValidationModule = _getWebAuthnValidationModule();
+        address gpgValidationModule = _getGPGValidationModule();
         address factoryOwner = _getFactoryOwner();
 
         if (address(modularAccountImpl) == address(0)) {
@@ -188,6 +189,7 @@ contract GetInitcodeHashScript is ScriptBase, Artifacts {
                         semiModularImpl,
                         singleSignerValidationModule,
                         webAuthnValidationModule,
+                        gpgValidationModule,
                         factoryOwner
                     )
                 )

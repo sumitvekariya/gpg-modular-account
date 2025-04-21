@@ -30,7 +30,7 @@ contract DeployFactoryScript is ScriptBase, Artifacts {
     address public singleSignerValidationModule;
     address public webAuthnValidationModule;
     address public factoryOwner;
-
+    address public gpgValidationModule;
     function setUp() public {
         // Load the required addresses for the factory deployment from env vars.
         entryPoint = _getEntryPoint();
@@ -38,6 +38,7 @@ contract DeployFactoryScript is ScriptBase, Artifacts {
         semiModularAccountBytecodeImpl = SemiModularAccountBytecode(payable(_getSemiModularAccountBytecodeImpl()));
         singleSignerValidationModule = _getSingleSignerValidationModule();
         webAuthnValidationModule = _getWebAuthnValidationModule();
+        gpgValidationModule = _getGPGValidationModule();
         factoryOwner = _getFactoryOwner();
 
         // Load the expected address and salt from env vars.
@@ -60,6 +61,7 @@ contract DeployFactoryScript is ScriptBase, Artifacts {
                 semiModularAccountBytecodeImpl,
                 singleSignerValidationModule,
                 webAuthnValidationModule,
+                gpgValidationModule,
                 factoryOwner
             ),
             _wrappedDeployAccountFactory
@@ -80,6 +82,7 @@ contract DeployFactoryScript is ScriptBase, Artifacts {
             semiModularAccountBytecodeImpl,
             singleSignerValidationModule,
             webAuthnValidationModule,
+            gpgValidationModule,
             factoryOwner
         );
     }

@@ -18,16 +18,23 @@
 pragma solidity ^0.8.26;
 
 import {ModularAccount} from "../../src/account/ModularAccount.sol";
+import {AccountFactory} from "../../src/factory/AccountFactory.sol";
 
 import {AccountTestBase} from "../utils/AccountTestBase.sol";
 import {TEST_DEFAULT_VALIDATION_ENTITY_ID} from "../utils/TestConstants.sol";
 
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {GPGValidationModule} from "../../src/modules/validation/GPGValidationModule.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 
 contract AccountFactoryTest is AccountTestBase {
     MockERC20 public erc20;
     uint256 internal _ownerX = 1;
     uint256 internal _ownerY = 2;
+
+    // Sample GPG Data
+    bytes8 internal testKeyId = bytes8(uint64(0x1234567890ABCDEF));
+    bytes internal testPubKey = hex"0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"; // Example secp256k1 public key bytes
 
     function test_createAccount() public withSMATest {
         ModularAccount account = factory.createAccount(address(this), 100, TEST_DEFAULT_VALIDATION_ENTITY_ID);
@@ -67,6 +74,69 @@ contract AccountFactoryTest is AccountTestBase {
             address(account),
             address(factory.getAddressWebAuthn(_ownerX, _ownerY, 100, TEST_DEFAULT_VALIDATION_ENTITY_ID))
         );
+    }
+
+    function test_createGPGAccount_DeploysCorrectly() public {
+        uint256 salt = 101;
+        uint32 entityId = TEST_DEFAULT_VALIDATION_ENTITY_ID + 1; // Use a different entity ID
+        bytes32 expectedPubKeyHash = keccak256(testPubKey);
+
+        // Predict address
+        address predictedAddress = factory.getAddressGPG(testKeyId, testPubKey, salt, entityId);
+
+        // Expect event
+        vm.expectEmit(true, true, false, true, address(factory)); // Check indexed account, keyId, and data fields emitted from factory address
+        emit AccountFactory.GPGAccountDeployed(predictedAddress, testKeyId, expectedPubKeyHash, salt, entityId);
+
+        // Deploy
+        ModularAccount account =
+            factory.createGPGAccount(testKeyId, testPubKey, salt, entityId);
+
+        // Check address
+        assertEq(address(account), predictedAddress);
+        assertEq(address(account.entryPoint()), address(entryPoint));
+
+        // Check GPG module installation
+        GPGValidationModule gpgModule = GPGValidationModule(factory.GPG_VALIDATION_MODULE());
+        // Assign getter result to tuple components
+        (bytes8 storedKeyId, bytes32 storedPubKeyHash) = gpgModule.gpgKeys(entityId, address(account));
+        assertEq(storedKeyId, testKeyId);
+        assertEq(storedPubKeyHash, expectedPubKeyHash);
+    }
+
+    function test_createGPGAccount_Idempotent() public {
+        uint256 salt = 102;
+        uint32 entityId = TEST_DEFAULT_VALIDATION_ENTITY_ID + 2;
+
+        // Deploy first time
+        ModularAccount account1 = factory.createGPGAccount(testKeyId, testPubKey, salt, entityId);
+
+        // Deploy second time - should not emit event or cost much gas
+        uint256 startGas = gasleft();
+        // vm.expectNoEmit(); // Linter doesn't recognize this cheatcode, but it should work at runtime
+        ModularAccount account2 = factory.createGPGAccount(testKeyId, testPubKey, salt, entityId);
+        assertLe(startGas - 22_000, gasleft()); // Should cost less than 1 SLOAD/SSTORE
+
+        // Assert the return addresses are the same
+        assertEq(address(account1), address(account2));
+    }
+
+    function test_getAddressGPG() public view {
+        uint256 salt = 103;
+        uint32 entityId = TEST_DEFAULT_VALIDATION_ENTITY_ID + 3;
+
+        // Calculate expected address
+        bytes32 expectedSalt = factory.getSaltGPG(testKeyId, testPubKey, salt, entityId);
+        address expectedAddress = LibClone.predictDeterministicAddressERC1967(
+            address(factory.ACCOUNT_IMPL()), // Read implementation address from factory
+            expectedSalt,
+            address(factory)
+        );
+
+        // Get address from factory
+        address actualAddress = factory.getAddressGPG(testKeyId, testPubKey, salt, entityId);
+
+        assertEq(actualAddress, expectedAddress);
     }
 
     function test_multipleDeploy() public withSMATest {

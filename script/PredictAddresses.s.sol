@@ -41,6 +41,7 @@ contract PredictAddressScript is ScriptBase, Artifacts {
     address public singleSignerValidationModule;
     address public webAuthnValidationModule;
     address public factoryOwner;
+    address public gpgValidationModule;
 
     function setUp() public {
         // Load the salts from env vars.
@@ -66,6 +67,7 @@ contract PredictAddressScript is ScriptBase, Artifacts {
         singleSignerValidationModule = _getSingleSignerValidationModule();
         webAuthnValidationModule = _getWebAuthnValidationModule();
         factoryOwner = _getFactoryOwner();
+        gpgValidationModule = _getGPGValidationModule();
     }
 
     function run() public view onlyProfile("optimized-build") {
@@ -218,6 +220,7 @@ contract PredictAddressScript is ScriptBase, Artifacts {
                         SemiModularAccountBytecode(payable(computedSemiModularAccountBytecodeImpl)),
                         computedSingleSignerValidationModule,
                         computedWebauthValidationModule,
+                        gpgValidationModule,
                         factoryOwner
                     )
                 ),

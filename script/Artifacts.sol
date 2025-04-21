@@ -15,6 +15,7 @@ import {PaymasterGuardModule} from "../src/modules/permissions/PaymasterGuardMod
 import {TimeRangeModule} from "../src/modules/permissions/TimeRangeModule.sol";
 import {SingleSignerValidationModule} from "../src/modules/validation/SingleSignerValidationModule.sol";
 import {WebAuthnValidationModule} from "../src/modules/validation/WebAuthnValidationModule.sol";
+import {GPGValidationModule} from "../src/modules/validation/GPGValidationModule.sol";
 
 // Contains all deployment artifacts
 // - AccountFactory
@@ -29,6 +30,7 @@ import {WebAuthnValidationModule} from "../src/modules/validation/WebAuthnValida
 // - SingleSignerValidationModule
 // - TimeRangeModule
 // - WebAuthnValidationModule
+// - GPGValidationModule
 abstract contract Artifacts {
     function _getAccountFactoryInitcode(
         IEntryPoint entryPoint,
@@ -36,6 +38,7 @@ abstract contract Artifacts {
         SemiModularAccountBytecode semiModularImpl,
         address singleSignerValidationModule,
         address webAuthnValidationModule,
+        address gpgValidationModule,
         address owner
     ) internal pure returns (bytes memory) {
         return bytes.concat(
@@ -46,6 +49,7 @@ abstract contract Artifacts {
                 semiModularImpl,
                 singleSignerValidationModule,
                 webAuthnValidationModule,
+                gpgValidationModule,
                 owner
             )
         );
@@ -58,6 +62,7 @@ abstract contract Artifacts {
         SemiModularAccountBytecode semiModularImpl,
         address singleSignerValidationModule,
         address webAuthnValidationModule,
+        address gpgValidationModule,
         address owner
     ) internal returns (address) {
         return address(
@@ -67,6 +72,7 @@ abstract contract Artifacts {
                 semiModularImpl,
                 singleSignerValidationModule,
                 webAuthnValidationModule,
+                gpgValidationModule,
                 owner
             )
         );
@@ -193,5 +199,13 @@ abstract contract Artifacts {
 
     function _deployWebAuthnValidationModule(bytes32 salt) internal returns (address) {
         return address(new WebAuthnValidationModule{salt: salt}());
+    }
+
+    function _getGPGValidationModuleInitcode() internal pure returns (bytes memory) {
+        return type(GPGValidationModule).creationCode;
+    }
+
+    function _deployGPGValidationModule(bytes32 salt) internal returns (address) {
+        return address(new GPGValidationModule{salt: salt}());
     }
 }
