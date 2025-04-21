@@ -26,6 +26,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 
 import {SignatureType} from "../../helpers/SignatureType.sol";
 import {ModuleBase} from "../ModuleBase.sol";
+import {GPGVerifierLib} from "../../libraries/GPGVerifierLib.sol";
 
 /// @title GPG Validation Module
 /// @author Modular Account Contributors
@@ -52,9 +53,6 @@ contract GPGValidationModule is IValidationModule, ReplaySafeWrapper, ModuleBase
     // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
     bytes4 internal constant _1271_MAGIC_VALUE = 0x1626ba7e;
     bytes4 internal constant _1271_INVALID = 0xffffffff;
-
-    /// @dev Address of the GPG signature verification precompile
-    address private constant _GPG_VERIFIER = address(0x696);
 
     /// @notice Mapping of GPG public keys and keyIds for each account and entity
     mapping(uint32 entityId => mapping(address account => PubKey)) public gpgKeys;
@@ -126,8 +124,8 @@ contract GPGValidationModule is IValidationModule, ReplaySafeWrapper, ModuleBase
                 return _SIG_VALIDATION_FAILED;
             }
 
-            // Validate the signature using the GPG precompile
-            if (_verifyGPGSignature(messageHash, storedKey.keyId, pubKey, signature)) {
+            // Validate the signature using the GPG precompile library
+            if (GPGVerifierLib.verifyGPGSignature(messageHash, storedKey.keyId, pubKey, signature)) {
                 return _SIG_VALIDATION_PASSED;
             }
         }
@@ -165,8 +163,8 @@ contract GPGValidationModule is IValidationModule, ReplaySafeWrapper, ModuleBase
                     revert NotAuthorized();
                 }
                 
-                // Validate the signature using the GPG precompile
-                if (_verifyGPGSignature(digest, storedKey.keyId, pubKey, sig)) {
+                // Validate the signature using the GPG precompile library
+                if (GPGVerifierLib.verifyGPGSignature(digest, storedKey.keyId, pubKey, sig)) {
                     return;
                 }
             }
@@ -202,8 +200,8 @@ contract GPGValidationModule is IValidationModule, ReplaySafeWrapper, ModuleBase
                 return _1271_INVALID;
             }
             
-            // Validate the signature using the GPG precompile
-            if (_verifyGPGSignature(_replaySafeHash, storedKey.keyId, pubKey, sig)) {
+            // Validate the signature using the GPG precompile library
+            if (GPGVerifierLib.verifyGPGSignature(_replaySafeHash, storedKey.keyId, pubKey, sig)) {
                 return _1271_MAGIC_VALUE;
             }
         }
@@ -251,27 +249,6 @@ contract GPGValidationModule is IValidationModule, ReplaySafeWrapper, ModuleBase
             previousKey.keyId,
             previousKey.pubKeyHash
         );
-    }
-
-    /// @dev Verifies a GPG signature using the precompile
-    /// @param digest The message digest
-    /// @param keyId The GPG keyId
-    /// @param pubKey The GPG public key
-    /// @param signature The GPG signature
-    /// @return valid True if the signature is valid
-    function _verifyGPGSignature(bytes32 digest, bytes8 keyId, bytes memory pubKey, bytes memory signature)
-        internal
-        view
-        returns (bool valid)
-    {
-        bytes memory data = abi.encode(digest, keyId, pubKey, signature);
-        (bool success, bytes memory returndata) = _GPG_VERIFIER.staticcall(data);
-        
-        if (!success || returndata.length != 32) {
-            return false;
-        }
-        
-        return abi.decode(returndata, (bool));
     }
 
     /// @dev Extracts the public key and signature from the raw signature data
