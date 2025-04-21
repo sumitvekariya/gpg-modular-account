@@ -17,6 +17,7 @@ contract DeployFactoryTest is OptimizedTest {
     address public singleSignerValidationModule;
     address public webAuthnValidationModule;
     address public factoryOwner;
+    address public gpgValidationModule;
 
     AccountFactory public factory;
 
@@ -31,6 +32,7 @@ contract DeployFactoryTest is OptimizedTest {
         singleSignerValidationModule = makeAddr("Single Signer Validation Module");
         webAuthnValidationModule = makeAddr("Webauthn Validation Module");
         factoryOwner = makeAddr("Factory Owner");
+        gpgValidationModule = makeAddr("GPG Validation Module");
 
         vm.setEnv("ENTRYPOINT", vm.toString(entryPoint));
         vm.setEnv("MODULAR_ACCOUNT_IMPL", vm.toString(modularAccountImpl));
@@ -38,6 +40,7 @@ contract DeployFactoryTest is OptimizedTest {
         vm.setEnv("SINGLE_SIGNER_VALIDATION_MODULE", vm.toString(singleSignerValidationModule));
         vm.setEnv("WEBAUTHN_VALIDATION_MODULE", vm.toString(webAuthnValidationModule));
         vm.setEnv("ACCOUNT_FACTORY_OWNER", vm.toString(factoryOwner));
+        vm.setEnv("GPG_VALIDATION_MODULE", vm.toString(gpgValidationModule));
 
         factory = AccountFactory(
             Create2.computeAddress(
@@ -51,6 +54,7 @@ contract DeployFactoryTest is OptimizedTest {
                             semiModularAccountBytecodeImpl,
                             singleSignerValidationModule,
                             webAuthnValidationModule,
+                            gpgValidationModule,
                             factoryOwner
                         )
                     )
