@@ -161,7 +161,7 @@ account.installValidation(GPG_VALIDATION_MODULE_ADDRESS, installData);
 
 When submitting a `UserOperation` or calling functions requiring validation (`validateRuntime`, `validateSignature`), the signature `bytes` must be formatted as follows:
 
-1.  **Signature Type Byte:** `0x02` (representing `SignatureType.GPG`).
+1.  **Signature Type Byte:** `0x03` (representing `SignatureType.GPG`).
 2.  **ABI Encoded Public Key:** The full GPG public key, ABI-encoded as `bytes`.
 3.  **ABI Encoded Signature:** The actual GPG signature, ABI-encoded as `bytes`.
 
@@ -170,7 +170,7 @@ When submitting a `UserOperation` or calling functions requiring validation (`va
 ```solidity
 // Off-chain or in tests
 bytes memory signatureData = abi.encodePacked(
-    bytes1(uint8(SignatureType.GPG)), // 0x02
+    bytes1(uint8(SignatureType.GPG)), // 0x03
     abi.encode(fullPubKeyBytes),      // Encoded pubKey
     abi.encode(gpgSignatureBytes)     // Encoded signature
 );
