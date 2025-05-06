@@ -38,6 +38,7 @@ import {ExecutionInstallDelegate} from "../../src/helpers/ExecutionInstallDelega
 import {ValidationLocator, ValidationLocatorLib} from "../../src/libraries/ValidationLocatorLib.sol";
 import {SingleSignerValidationModule} from "../../src/modules/validation/SingleSignerValidationModule.sol";
 import {WebAuthnValidationModule} from "../../src/modules/validation/WebAuthnValidationModule.sol";
+import {GPGValidationModule} from "../../src/modules/validation/GPGValidationModule.sol";
 
 import {ModuleSignatureUtils} from "./ModuleSignatureUtils.sol";
 import {OptimizedTest} from "./OptimizedTest.sol";
@@ -107,6 +108,9 @@ abstract contract AccountTestBase is OptimizedTest, ModuleSignatureUtils {
         singleSignerValidationModule = _deploySingleSignerValidationModule();
         // vm.etch(address(0), deployedSingleSignerValidationModule.code);
 
+        // Deploy GPG Validation Module
+        address gpgValidationModule = address(new GPGValidationModule());
+
         executionInstallDelegate = _deployExecutionInstallDelegate();
 
         accountImplementation = _deployModularAccount(entryPoint, executionInstallDelegate);
@@ -123,6 +127,7 @@ abstract contract AccountTestBase is OptimizedTest, ModuleSignatureUtils {
             semiModularAccountImplementation,
             address(singleSignerValidationModule),
             webAuthnModule,
+            gpgValidationModule,
             factoryOwner
         );
 

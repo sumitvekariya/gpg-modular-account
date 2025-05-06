@@ -8,6 +8,7 @@ import {StakeFactoryScript} from "../../script/StakeFactory.s.sol";
 import {AccountFactory} from "../../src/factory/AccountFactory.sol";
 import {ExecutionInstallDelegate} from "../../src/helpers/ExecutionInstallDelegate.sol";
 import {WebAuthnValidationModule} from "../../src/modules/validation/WebAuthnValidationModule.sol";
+import {GPGValidationModule} from "../../src/modules/validation/GPGValidationModule.sol";
 
 import {OptimizedTest} from "../utils/OptimizedTest.sol";
 
@@ -28,12 +29,15 @@ contract StakeFactoryTest is OptimizedTest {
 
         ExecutionInstallDelegate executionInstallDelegate = _deployExecutionInstallDelegate();
 
+        address gpgValidationModule = address(new GPGValidationModule());
+
         _accountFactory = new AccountFactory(
             _entryPoint,
             _deployModularAccount(_entryPoint, executionInstallDelegate),
             _deploySemiModularAccountBytecode(_entryPoint, executionInstallDelegate),
             address(_deploySingleSignerValidationModule()),
             address(new WebAuthnValidationModule()),
+            gpgValidationModule,
             DEFAULT_SENDER
         );
 

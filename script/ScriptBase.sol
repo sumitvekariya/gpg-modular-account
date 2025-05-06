@@ -61,6 +61,10 @@ abstract contract ScriptBase is Script {
         return vm.envOr("WEBAUTHN_VALIDATION_MODULE", address(0));
     }
 
+    function _getGPGValidationModule() internal view returns (address) {
+        return vm.envOr("GPG_VALIDATION_MODULE", address(0));
+    }
+
     function _getFactoryOwner() internal view returns (address) {
         return vm.envOr("ACCOUNT_FACTORY_OWNER", address(0));
     }

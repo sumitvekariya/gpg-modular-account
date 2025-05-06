@@ -8,6 +8,7 @@ import {SemiModularAccount7702} from "../src/account/SemiModularAccount7702.sol"
 import {SemiModularAccountBytecode} from "../src/account/SemiModularAccountBytecode.sol";
 import {SemiModularAccountStorageOnly} from "../src/account/SemiModularAccountStorageOnly.sol";
 import {AccountFactory} from "../src/factory/AccountFactory.sol";
+import {GPGAccountFactory} from "../src/factory/GPGAccountFactory.sol";
 import {ExecutionInstallDelegate} from "../src/helpers/ExecutionInstallDelegate.sol";
 import {AllowlistModule} from "../src/modules/permissions/AllowlistModule.sol";
 import {NativeTokenLimitModule} from "../src/modules/permissions/NativeTokenLimitModule.sol";
@@ -15,11 +16,13 @@ import {PaymasterGuardModule} from "../src/modules/permissions/PaymasterGuardMod
 import {TimeRangeModule} from "../src/modules/permissions/TimeRangeModule.sol";
 import {SingleSignerValidationModule} from "../src/modules/validation/SingleSignerValidationModule.sol";
 import {WebAuthnValidationModule} from "../src/modules/validation/WebAuthnValidationModule.sol";
+import {GPGValidationModule} from "../src/modules/validation/GPGValidationModule.sol";
 
 // Contains all deployment artifacts
 // - AccountFactory
 // - AllowlistModule
 // - ExecutionInstallDelegate
+// - GPGAccountFactory
 // - ModularAccount
 // - NativeTokenLimitModule
 // - PaymasterGuardModule
@@ -29,6 +32,7 @@ import {WebAuthnValidationModule} from "../src/modules/validation/WebAuthnValida
 // - SingleSignerValidationModule
 // - TimeRangeModule
 // - WebAuthnValidationModule
+// - GPGValidationModule
 abstract contract Artifacts {
     function _getAccountFactoryInitcode(
         IEntryPoint entryPoint,
@@ -36,6 +40,7 @@ abstract contract Artifacts {
         SemiModularAccountBytecode semiModularImpl,
         address singleSignerValidationModule,
         address webAuthnValidationModule,
+        address gpgValidationModule,
         address owner
     ) internal pure returns (bytes memory) {
         return bytes.concat(
@@ -46,6 +51,7 @@ abstract contract Artifacts {
                 semiModularImpl,
                 singleSignerValidationModule,
                 webAuthnValidationModule,
+                gpgValidationModule,
                 owner
             )
         );
@@ -58,6 +64,7 @@ abstract contract Artifacts {
         SemiModularAccountBytecode semiModularImpl,
         address singleSignerValidationModule,
         address webAuthnValidationModule,
+        address gpgValidationModule,
         address owner
     ) internal returns (address) {
         return address(
@@ -67,6 +74,7 @@ abstract contract Artifacts {
                 semiModularImpl,
                 singleSignerValidationModule,
                 webAuthnValidationModule,
+                gpgValidationModule,
                 owner
             )
         );
@@ -193,5 +201,47 @@ abstract contract Artifacts {
 
     function _deployWebAuthnValidationModule(bytes32 salt) internal returns (address) {
         return address(new WebAuthnValidationModule{salt: salt}());
+    }
+
+    function _getGPGValidationModuleInitcode() internal pure returns (bytes memory) {
+        return type(GPGValidationModule).creationCode;
+    }
+
+    function _deployGPGValidationModule(bytes32 salt) internal returns (address) {
+        return address(new GPGValidationModule{salt: salt}());
+    }
+
+    function _getGPGAccountFactoryInitcode(
+        IEntryPoint entryPoint,
+        ModularAccount accountImpl,
+        address gpgValidationModule,
+        address owner
+    ) internal pure returns (bytes memory) {
+        return bytes.concat(
+            type(GPGAccountFactory).creationCode,
+            abi.encode(
+                entryPoint,
+                accountImpl,
+                gpgValidationModule,
+                owner
+            )
+        );
+    }
+
+    function _deployGPGAccountFactory(
+        bytes32 salt,
+        IEntryPoint entryPoint,
+        ModularAccount accountImpl,
+        address gpgValidationModule,
+        address owner
+    ) internal returns (address) {
+        return address(
+            new GPGAccountFactory{salt: salt}(
+                entryPoint,
+                accountImpl,
+                gpgValidationModule,
+                owner
+            )
+        );
     }
 }

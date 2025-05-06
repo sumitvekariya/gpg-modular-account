@@ -1,0 +1,159 @@
+// This file is part of Modular Account.
+//
+// Copyright 2024 Alchemy Insights, Inc.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
+// Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+// option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+// implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+// more details.
+//
+// You should have received a copy of the GNU General Public License along with this program. If not, see
+// <https://www.gnu.org/licenses/>.
+
+pragma solidity ^0.8.26;
+
+import {ValidationConfigLib} from "@erc6900/reference-implementation/libraries/ValidationConfigLib.sol";
+import {IEntryPoint} from "@eth-infinitism/account-abstraction/interfaces/IEntryPoint.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
+
+import {ModularAccount} from "../account/ModularAccount.sol";
+
+/// @title GPG Account Factory
+/// @author Modular Account Contributors
+/// @notice Factory contract to deploy accounts using GPG for signature verification.
+contract GPGAccountFactory is Ownable2Step {
+    ModularAccount public immutable ACCOUNT_IMPL;
+    IEntryPoint public immutable ENTRY_POINT;
+    address public immutable GPG_VALIDATION_MODULE;
+
+    event GPGAccountDeployed(
+        address indexed account, bytes8 indexed keyId, bytes32 pubKeyHash, uint256 salt, uint32 entityId
+    );
+
+    error InvalidAction();
+    error TransferFailed();
+
+    constructor(
+        IEntryPoint _entryPoint,
+        ModularAccount _accountImpl,
+        address _gpgValidationModule,
+        address owner
+    ) Ownable(owner) {
+        ENTRY_POINT = _entryPoint;
+        ACCOUNT_IMPL = _accountImpl;
+        GPG_VALIDATION_MODULE = _gpgValidationModule;
+    }
+
+    /// @notice Create an account with the GPG Validation module installed, and return its address.
+    /// @dev Returns the address even if the account is already deployed.
+    /// @param keyId The GPG keyId.
+    /// @param pubKey The GPG public key bytes.
+    /// @param salt The salt to use for the account creation.
+    /// @param entityId The entity ID to use for the account creation.
+    /// @return The address of the created account.
+    function createGPGAccount(bytes8 keyId, bytes calldata pubKey, uint256 salt, uint32 entityId)
+        external
+        returns (ModularAccount)
+    {
+        bytes32 combinedSalt = getSaltGPG(keyId, pubKey, salt, entityId);
+
+        // LibClone short-circuits if it's already deployed.
+        (bool alreadyDeployed, address instance) =
+            LibClone.createDeterministicERC1967(address(ACCOUNT_IMPL), combinedSalt);
+
+        // short circuit if exists
+        if (!alreadyDeployed) {
+            bytes memory moduleInstallData = abi.encode(entityId, keyId, pubKey);
+            // point proxy to actual implementation and init plugins
+            ModularAccount(payable(instance)).initializeWithValidation(
+                ValidationConfigLib.pack(GPG_VALIDATION_MODULE, entityId, true, true, true),
+                new bytes4[](0),
+                moduleInstallData,
+                new bytes[](0)
+            );
+            bytes32 pubKeyHash = keccak256(pubKey);
+            emit GPGAccountDeployed(instance, keyId, pubKeyHash, salt, entityId);
+        }
+
+        return ModularAccount(payable(instance));
+    }
+
+    /// @notice Add stake to the entry point contract.
+    /// @param unstakeDelay The delay in seconds before the stake can be withdrawn.
+    function addStake(uint32 unstakeDelay) external payable onlyOwner {
+        ENTRY_POINT.addStake{value: msg.value}(unstakeDelay);
+    }
+
+    /// @notice Unlock the stake in the entry point contract.
+    function unlockStake() external onlyOwner {
+        ENTRY_POINT.unlockStake();
+    }
+
+    /// @notice Withdraw the stake from the entry point contract.
+    /// @param withdrawAddress The address to withdraw the stake to.
+    function withdrawStake(address payable withdrawAddress) external onlyOwner {
+        ENTRY_POINT.withdrawStake(withdrawAddress);
+    }
+
+    /// @notice Withdraw funds from this contract.
+    /// @dev Can be used to withdraw native currency or ERC-20 tokens.
+    /// @param to The address to withdraw the funds to.
+    /// @param token The address of the token to withdraw, or the zero address for native currency.
+    /// @param amount The amount to withdraw.
+    function withdraw(address payable to, address token, uint256 amount) external onlyOwner {
+        if (token == address(0)) {
+            (bool success,) = to.call{value: address(this).balance}("");
+            if (!success) {
+                revert TransferFailed();
+            }
+        } else {
+            SafeERC20.safeTransfer(IERC20(token), to, amount);
+        }
+    }
+
+    /// @notice Calculate the counterfactual address of a GPG account as it would be returned by
+    /// createGPGAccount.
+    /// @param keyId The GPG keyId.
+    /// @param pubKey The GPG public key bytes.
+    /// @param salt The salt to use for the account creation.
+    /// @param entityId The entity ID to use for the account creation.
+    /// @return The address of the account.
+    function getAddressGPG(bytes8 keyId, bytes calldata pubKey, uint256 salt, uint32 entityId)
+        external
+        view
+        returns (address)
+    {
+        return LibClone.predictDeterministicAddressERC1967(
+            address(ACCOUNT_IMPL), getSaltGPG(keyId, pubKey, salt, entityId), address(this)
+        );
+    }
+
+    /// @notice Disable renouncing ownership.
+    function renounceOwnership() public view override onlyOwner {
+        revert InvalidAction();
+    }
+
+    /// @notice Get the full salt used for GPG account creation.
+    /// @param keyId The GPG keyId.
+    /// @param pubKey The GPG public key bytes.
+    /// @param salt The salt to use for the account creation.
+    /// @param entityId The entity ID to use for the account creation.
+    /// @return The full salt.
+    function getSaltGPG(bytes8 keyId, bytes calldata pubKey, uint256 salt, uint32 entityId)
+        public
+        pure
+        returns (bytes32)
+    {
+        // Hash the pubKey to ensure fixed-size input for salt calculation, preventing potential issues.
+        return keccak256(abi.encodePacked(keyId, keccak256(pubKey), salt, entityId));
+    }
+} 

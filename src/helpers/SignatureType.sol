@@ -17,8 +17,9 @@
 
 pragma solidity ^0.8.26;
 
-/// @notice An enum that is prepended to signatures to differentiate between EOA and contract owner signatures.
+/// @notice An enum that is prepended to signatures to differentiate between EOA, contract owner, and GPG signatures.
 enum SignatureType {
     EOA,
-    CONTRACT_OWNER
+    CONTRACT_OWNER,
+    GPG
 }

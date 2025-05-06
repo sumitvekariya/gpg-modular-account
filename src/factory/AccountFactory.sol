@@ -38,11 +38,15 @@ contract AccountFactory is Ownable2Step {
     IEntryPoint public immutable ENTRY_POINT;
     address public immutable SINGLE_SIGNER_VALIDATION_MODULE;
     address public immutable WEBAUTHN_VALIDATION_MODULE;
+    address public immutable GPG_VALIDATION_MODULE;
 
     event ModularAccountDeployed(address indexed account, address indexed owner, uint256 salt);
     event SemiModularAccountDeployed(address indexed account, address indexed owner, uint256 salt);
     event WebAuthnModularAccountDeployed(
         address indexed account, uint256 indexed ownerX, uint256 indexed ownerY, uint256 salt
+    );
+    event GPGAccountDeployed(
+        address indexed account, bytes8 indexed keyId, bytes32 pubKeyHash, uint256 salt, uint32 entityId
     );
 
     error InvalidAction();
@@ -54,6 +58,7 @@ contract AccountFactory is Ownable2Step {
         SemiModularAccountBytecode _semiModularImpl,
         address _singleSignerValidationModule,
         address _webAuthnValidationModule,
+        address _gpgValidationModule,
         address owner
     ) Ownable(owner) {
         ENTRY_POINT = _entryPoint;
@@ -61,6 +66,7 @@ contract AccountFactory is Ownable2Step {
         SEMI_MODULAR_ACCOUNT_IMPL = _semiModularImpl;
         SINGLE_SIGNER_VALIDATION_MODULE = _singleSignerValidationModule;
         WEBAUTHN_VALIDATION_MODULE = _webAuthnValidationModule;
+        GPG_VALIDATION_MODULE = _gpgValidationModule;
     }
 
     /// @notice Create an account with the single singer validation module installed, and return its address.
@@ -154,6 +160,40 @@ contract AccountFactory is Ownable2Step {
         return ModularAccount(payable(instance));
     }
 
+    /// @notice Create an account with the GPG Validation module installed, and return its address.
+    /// @dev Returns the address even if the account is already deployed.
+    /// @param keyId The GPG keyId.
+    /// @param pubKey The GPG public key bytes.
+    /// @param salt The salt to use for the account creation.
+    /// @param entityId The entity ID to use for the account creation.
+    /// @return The address of the created account.
+    function createGPGAccount(bytes8 keyId, bytes calldata pubKey, uint256 salt, uint32 entityId)
+        external
+        returns (ModularAccount)
+    {
+        bytes32 combinedSalt = getSaltGPG(keyId, pubKey, salt, entityId);
+
+        // LibClone short-circuits if it's already deployed.
+        (bool alreadyDeployed, address instance) =
+            LibClone.createDeterministicERC1967(address(ACCOUNT_IMPL), combinedSalt);
+
+        // short circuit if exists
+        if (!alreadyDeployed) {
+            bytes memory moduleInstallData = abi.encode(entityId, keyId, pubKey);
+            // point proxy to actual implementation and init plugins
+            ModularAccount(payable(instance)).initializeWithValidation(
+                ValidationConfigLib.pack(GPG_VALIDATION_MODULE, entityId, true, true, true),
+                new bytes4[](0),
+                moduleInstallData,
+                new bytes[](0)
+            );
+            bytes32 pubKeyHash = keccak256(pubKey);
+            emit GPGAccountDeployed(instance, keyId, pubKeyHash, salt, entityId);
+        }
+
+        return ModularAccount(payable(instance));
+    }
+
     /// @notice Add stake to the entry point contract.
     /// @param unstakeDelay The delay in seconds before the stake can be withdrawn.
     function addStake(uint32 unstakeDelay) external payable onlyOwner {
@@ -226,6 +266,23 @@ contract AccountFactory is Ownable2Step {
         );
     }
 
+    /// @notice Calculate the counterfactual address of a GPG account as it would be returned by
+    /// createGPGAccount.
+    /// @param keyId The GPG keyId.
+    /// @param pubKey The GPG public key bytes.
+    /// @param salt The salt to use for the account creation.
+    /// @param entityId The entity ID to use for the account creation.
+    /// @return The address of the account.
+    function getAddressGPG(bytes8 keyId, bytes calldata pubKey, uint256 salt, uint32 entityId)
+        external
+        view
+        returns (address)
+    {
+        return LibClone.predictDeterministicAddressERC1967(
+            address(ACCOUNT_IMPL), getSaltGPG(keyId, pubKey, salt, entityId), address(this)
+        );
+    }
+
     /// @notice Disable renouncing ownership.
     function renounceOwnership() public view override onlyOwner {
         revert InvalidAction();
@@ -253,6 +310,21 @@ contract AccountFactory is Ownable2Step {
         returns (bytes32)
     {
         return keccak256(abi.encodePacked(ownerX, ownerY, salt, entityId));
+    }
+
+    /// @notice Get the full salt used for GPG account creation.
+    /// @param keyId The GPG keyId.
+    /// @param pubKey The GPG public key bytes.
+    /// @param salt The salt to use for the account creation.
+    /// @param entityId The entity ID to use for the account creation.
+    /// @return The full salt.
+    function getSaltGPG(bytes8 keyId, bytes calldata pubKey, uint256 salt, uint32 entityId)
+        public
+        pure
+        returns (bytes32)
+    {
+        // Hash the pubKey to ensure fixed-size input for salt calculation, preventing potential issues.
+        return keccak256(abi.encodePacked(keyId, keccak256(pubKey), salt, entityId));
     }
 
     function _getAddressSemiModular(bytes memory immutables, bytes32 salt) internal view returns (address) {
