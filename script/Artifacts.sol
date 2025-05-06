@@ -8,6 +8,7 @@ import {SemiModularAccount7702} from "../src/account/SemiModularAccount7702.sol"
 import {SemiModularAccountBytecode} from "../src/account/SemiModularAccountBytecode.sol";
 import {SemiModularAccountStorageOnly} from "../src/account/SemiModularAccountStorageOnly.sol";
 import {AccountFactory} from "../src/factory/AccountFactory.sol";
+import {GPGAccountFactory} from "../src/factory/GPGAccountFactory.sol";
 import {ExecutionInstallDelegate} from "../src/helpers/ExecutionInstallDelegate.sol";
 import {AllowlistModule} from "../src/modules/permissions/AllowlistModule.sol";
 import {NativeTokenLimitModule} from "../src/modules/permissions/NativeTokenLimitModule.sol";
@@ -21,6 +22,7 @@ import {GPGValidationModule} from "../src/modules/validation/GPGValidationModule
 // - AccountFactory
 // - AllowlistModule
 // - ExecutionInstallDelegate
+// - GPGAccountFactory
 // - ModularAccount
 // - NativeTokenLimitModule
 // - PaymasterGuardModule
@@ -207,5 +209,39 @@ abstract contract Artifacts {
 
     function _deployGPGValidationModule(bytes32 salt) internal returns (address) {
         return address(new GPGValidationModule{salt: salt}());
+    }
+
+    function _getGPGAccountFactoryInitcode(
+        IEntryPoint entryPoint,
+        ModularAccount accountImpl,
+        address gpgValidationModule,
+        address owner
+    ) internal pure returns (bytes memory) {
+        return bytes.concat(
+            type(GPGAccountFactory).creationCode,
+            abi.encode(
+                entryPoint,
+                accountImpl,
+                gpgValidationModule,
+                owner
+            )
+        );
+    }
+
+    function _deployGPGAccountFactory(
+        bytes32 salt,
+        IEntryPoint entryPoint,
+        ModularAccount accountImpl,
+        address gpgValidationModule,
+        address owner
+    ) internal returns (address) {
+        return address(
+            new GPGAccountFactory{salt: salt}(
+                entryPoint,
+                accountImpl,
+                gpgValidationModule,
+                owner
+            )
+        );
     }
 }

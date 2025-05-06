@@ -20,7 +20,9 @@ Alchemy's Modular Account is a maximally modular, upgradeable smart contract acc
 This repository contains:
 
 - ERC-6900 compatible account implementations: [src/account](src/account)
-- Account factory: [src/factory](src/factory)
+- Account factories: [src/factory](src/factory)
+  - Generic `AccountFactory` supporting multiple validation types
+  - Dedicated `GPGAccountFactory` for GPG-key controlled accounts
 - Helper contracts and libraries: [src/helpers](src/helpers), [src/libraries](src/libraries)
 - ERC-6900 compatible modules: [src/modules](src/modules)
   - Validation modules:
@@ -76,6 +78,12 @@ You will also need provide a wallet to use for deployment. Available options can
 
 ```bash
 FOUNDRY_PROFILE=<profile> forge script script/<deploy_script>.s.sol --rpc-url $RPC_URL --broadcast
+```
+
+For deploying the GPG-specific factory:
+
+```bash
+FOUNDRY_PROFILE=optimized-build-standalone forge script script/DeployGPGFactory.s.sol --rpc-url $RPC_URL --broadcast
 ```
 
 ## Features overview
@@ -143,19 +151,30 @@ The `GPGValidationModule` allows accounts to be controlled by GPG keys, leveragi
 
 - The chain where the account is deployed **must** support the GPG precompile at address `0x696`.
 
-**Installation:**
+**Installation Methods:**
 
-Install the module by calling `installValidation` on the account:
+1. **Using the dedicated `GPGAccountFactory`**:
+   ```solidity
+   // Example creation of a GPG-controlled account
+   GPGAccountFactory factory = GPGAccountFactory(GPG_FACTORY_ADDRESS);
+   ModularAccount account = factory.createGPGAccount(
+       bytes8 keyId,      // The GPG key ID (e.g., 0x1234567890ABCDEF)
+       bytes memory pubKey, // The full GPG public key bytes
+       uint256 salt,      // Arbitrary salt for address prediction
+       uint32 entityId    // Entity ID for the validation
+   );
+   ```
 
-```solidity
-// Example data encoding for installation
-bytes memory installData = abi.encode(
-    uint32 entityId, // Choose an entityId for this key
-    bytes8 keyId,    // The specific GPG key ID
-    bytes memory pubKey // The full GPG public key bytes
-);
-account.installValidation(GPG_VALIDATION_MODULE_ADDRESS, installData);
-```
+2. **Using the standard `AccountFactory` or manually**:
+   ```solidity
+   // Example data encoding for installation on existing account
+   bytes memory installData = abi.encode(
+       uint32 entityId, // Choose an entityId for this key
+       bytes8 keyId,    // The specific GPG key ID
+       bytes memory pubKey // The full GPG public key bytes
+   );
+   account.installValidation(GPG_VALIDATION_MODULE_ADDRESS, installData);
+   ```
 
 **Signature Format:**
 
@@ -177,6 +196,26 @@ bytes memory signatureData = abi.encodePacked(
 ```
 
 The module verifies that the hash of the provided `fullPubKeyBytes` matches the hash stored during installation before calling the precompile with the `digest`, `keyId`, `fullPubKeyBytes`, and `gpgSignatureBytes`.
+
+### GPG Account Factory
+
+For easier integration and deployment of accounts specifically controlled by GPG keys, this repository includes a dedicated `GPGAccountFactory`. This factory simplifies the creation of GPG-controlled accounts by:
+
+1. Focusing only on GPG validation
+2. Providing a cleaner and more specialized API
+3. Reducing gas costs by eliminating unused validation modules
+
+#### Deployment
+
+To deploy the GPG Account Factory, you need the following environment variables:
+- `ENTRY_POINT`: The EntryPoint contract address
+- `MODULAR_ACCOUNT_IMPL`: The ModularAccount implementation address
+- `GPG_VALIDATION_MODULE`: The deployed GPGValidationModule address
+- `ACCOUNT_FACTORY_OWNER`: The owner address for the factory
+
+```bash
+FOUNDRY_PROFILE=optimized-build-standalone forge script script/DeployGPGFactory.s.sol --rpc-url $RPC_URL --broadcast
+```
 
 ## Security
 
