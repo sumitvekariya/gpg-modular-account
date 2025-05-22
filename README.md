@@ -86,6 +86,18 @@ For deploying the GPG-specific factory:
 FOUNDRY_PROFILE=optimized-build-standalone forge script script/DeployGPGFactory.s.sol --rpc-url $RPC_URL --broadcast
 ```
 
+For deploying to the Tea Sepolia testnet (which supports GPG signatures via native precompile):
+
+```bash
+# Deploy everything in one step
+forge script script/deployments/tea-sepolia/Deploy.s.sol:DeployTeaSepoliaScript --rpc-url https://tea-sepolia.g.alchemy.com/public --broadcast
+
+# Or use the helper script
+./script/deployments/tea-sepolia/deploy_gpg_module.sh
+```
+
+For deployment details on Tea Sepolia, see [deployments/tea-sepolia/README.md](deployments/tea-sepolia/README.md).
+
 ## Features overview
 
 ### Features
@@ -150,6 +162,7 @@ The `GPGValidationModule` allows accounts to be controlled by GPG keys, leveragi
 **Requirements:**
 
 - The chain where the account is deployed **must** support the GPG precompile at address `0x696`.
+- Currently supported chains include [Tea Protocol](https://tea.xyz)'s Sepolia testnet (chain ID: 10218).
 
 **Installation Methods:**
 
@@ -194,6 +207,17 @@ bytes memory signatureData = abi.encodePacked(
     abi.encode(gpgSignatureBytes)     // Encoded signature
 );
 ```
+
+**Testing GPG Signatures:**
+
+To test and verify GPG signatures with the deployed modules on Tea Sepolia, use the included verification script:
+
+```bash
+# Run the verification script
+node script/gpg/verify-gpg-signature.js
+```
+
+For more information on working with GPG signatures and the Tea Sepolia deployment, see [deployments/tea-sepolia/README.md](deployments/tea-sepolia/README.md).
 
 The module verifies that the hash of the provided `fullPubKeyBytes` matches the hash stored during installation before calling the precompile with the `digest`, `keyId`, `fullPubKeyBytes`, and `gpgSignatureBytes`.
 
