@@ -2,11 +2,13 @@
   "name": "modular-account",
   "version": "v1.0.1",
   "dependencies": {
-    "account-abstraction": "github:eth-infinitism/account-abstraction#v0.7.0",
     "@erc6900/reference-implementation": "github:erc6900/reference-implementation#v0.8.0",
+    "account-abstraction": "github:eth-infinitism/account-abstraction#v0.7.0",
+    "openpgp": "^6.1.1",
     "solady": "github:Vectorized/solady#v0.0.237"
   },
   "devDependencies": {
+    "ethers": "^6.9.0",
     "pnpm": "^9.15.0",
     "solhint": "^3.6.2"
   },

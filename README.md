@@ -270,3 +270,66 @@ The contracts in this repository adhere to the ERC-6900 specification, and are h
 The contracts provided in this repository in [src](src) are licensed under the GNU General Public License v3.0, included in our repository in [LICENSE-GPL](LICENSE-GPL).
 
 Alchemy Insights, Inc., 548 Market St., PMB 49099, San Francisco, CA 94104; legal@alchemy.com
+
+# GPG Signature Verification
+
+This script verifies GPG signatures using the Modular Account's GPGValidationModule contract deployed on the Tea Sepolia network.
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+
+## Setup
+
+1. Clone this repository
+2. Install dependencies:
+
+```bash
+npm install
+# or
+yarn install
+```
+
+## Usage
+
+Run the verification script:
+
+```bash
+npm run verify
+# or
+yarn verify
+```
+
+## How It Works
+
+The script does the following:
+
+1. Connects to the Tea Sepolia network (chain ID 10218)
+2. Formats the test GPG signature data for contract verification
+3. Attempts to verify the signature using the deployed GPGValidationModule contract
+4. Checks if any accounts have registered the sample key ID
+
+## Customizing
+
+To verify a different signature, update the following constants in `verify-gpg-signature.js`:
+
+- `RSA_MESSAGE_HASH`: The message hash that was signed
+- `RSA_KEY_ID`: The GPG key ID
+- `RSA_PUBLIC_KEY`: The GPG public key
+- `RSA_SIGNATURE`: The GPG signature
+
+## Registering Your Own Key
+
+To register your own GPG key with the contract, you'll need:
+
+1. A funded account on the Tea Sepolia network
+2. Your GPG key ID and public key
+
+Follow the instructions printed by the script for registering your key.
+
+## Contract Information
+
+- Contract Address: `0xea38Dc6fFAe9221d62c2a2F5BD3AB996345Aea6b`
+- Chain: Tea Sepolia (Chain ID: 10218)
+- RPC URL: `https://tea-sepolia.g.alchemy.com/public`
