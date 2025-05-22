@@ -4,7 +4,7 @@ const openpgp = require('openpgp');
 // Contract information
 // const CONTRACT_ADDRESS = '0x11744B41E952D18c61DF11838891748c4746E3c8';
 // const CONTRACT_ADDRESS = '0xea38Dc6fFAe9221d62c2a2F5BD3AB996345Aea6b';
-const CONTRACT_ADDRESS = '0xA073100aF7f41e19bf5d1410973bE07FfD807B1c'; // Newly deployed contract with debugging
+const CONTRACT_ADDRESS = '0xdD700e3d3122e28A47f8F06190637Be667Ef8B4D'; // Newly deployed contract with debugging
 const RPC_URL = 'https://tea-sepolia.g.alchemy.com/public';
 // const RPC_URL = 'http://localhost:8545';
 
@@ -613,25 +613,26 @@ async function testKey(contract, wallet, provider, entityId, keyId, pubKey, mess
           console.log('Error during openpgp.js verification:', pgpError.message);
         }
 
-        // Try calling the function with better error handling
-        try {
-          const directResult = await contract._verifyGPGSignature(
-            messageHash,  // digest
-            keyIdBytes,   // keyId
-            pubKey,       // pubKey
-            signature     // signature
-          );
+        //  Try calling the function with better error handling
+        //TODO: use this only when _verifyGPGSignature is made public
+        // try {
+        //   const directResult = await contract._verifyGPGSignature(
+        //     messageHash,  // digest
+        //     keyIdBytes,   // keyId
+        //     pubKey,       // pubKey
+        //     signature     // signature
+        //   );
 
-          console.log('Direct verification result:', directResult);
-          console.log(directResult ? '✅ Direct verification successful!' : '❌ Direct verification failed.');
-        } catch (callError) {
-          console.log('Direct call error:', callError.message);
+        //   console.log('Direct verification result:', directResult);
+        //   console.log(directResult ? '✅ Direct verification successful!' : '❌ Direct verification failed.');
+        // } catch (callError) {
+        //   console.log('Direct call error:', callError.message);
 
-          // Check if there's additional error data
-          if (callError.data) {
-            console.log('Error data:', callError.data);
-          }
-        }
+        //   // Check if there's additional error data
+        //   if (callError.data) {
+        //     console.log('Error data:', callError.data);
+        //   }
+        // }
 
         // Now test validateSignature method (ERC-1271 validation)
         console.log('\nTrying to call validateSignature (ERC-1271 validation)...');

@@ -1,6 +1,6 @@
 [profile.default]
 solc = '0.8.26'
-via_ir = false
+via_ir = true
 evm_version = 'paris'
 src = 'src'
 test = 'test'
@@ -89,3 +89,7 @@ number_underscore = "thousands"
 int_types = "long"
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+[rpc_endpoints]
+local = "http://localhost:8545" # Or your tea-geth RPC URL
+tea = "https://tea-sepolia.g.alchemy.com/public"
